@@ -1,0 +1,53 @@
+morocc,162,90,5	script	PVP RANGE	-1,5,5,{
+
+OnInit:
+    setcell "morocc",147,95,167,85,cell_pvp,1;
+    end;
+
+OnTouch:
+		announce strcharinfo(0) + " ได้เข้าสู่โซน ซัดหน้า.",bc_all,0x33FF66;
+	end;
+
+}
+
+/*morocc,162,90,5	script	NPC ทดสอบ#pvp_on_of	-1,5,5,{
+	
+OnTouch:
+		set pvp_mode,1;
+		announce strcharinfo(0) + " ได้เปิด PVP mode ไปหวดมันได้.",bc_all,0x33FF66;
+		atcommand "@speed 80";
+		//atcommand "@killer";
+		//atcommand "@killable";
+		atcommand "@pvpmode_on";
+	end;
+	
+}
+
+morocc,157,90,5	script	ระยะ#1	858,5,5,{}
+morocc,162,85,5	script	ระยะ#2	858,5,5,{}
+morocc,167,85,5	script	ระยะ#3	858,5,5,{}
+morocc,167,90,5	script	ระยะ#4	858,5,5,{}
+morocc,157,85,5	script	ระยะ#5	858,5,5,{}
+morocc,157,95,5	script	ระยะ#6	858,5,5,{}
+morocc,162,95,5	script	ระยะ#7	858,5,5,{}
+morocc,167,95,5	script	ระยะ#8	858,5,5,{}
+
+morocc,152,90,5	script	NPC ทดสอบ#pvp_on_of	-1,5,5,{
+	
+OnTouch:
+		announce strcharinfo(0) + " ปิด PVP.",bc_all,0xFF9900;
+		set pvp_mode,0;
+		atcommand "@speed 120";
+		//atcommand "@killer";
+		//atcommand "@killable";
+		atcommand "@pvpmode_on";
+	end;
+	
+}
+
+morocc,152,95,5	script	ระยะ#9	858,5,5,{}
+morocc,147,95,5	script	ระยะ#10	858,5,5,{}
+morocc,147,90,5	script	ระยะ#11	858,5,5,{}
+morocc,147,85,5	script	ระยะ#12	858,5,5,{}
+morocc,152,85,5	script	ระยะ#13	858,5,5,{}
+*/

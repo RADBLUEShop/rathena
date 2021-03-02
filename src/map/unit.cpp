@@ -218,10 +218,10 @@ int unit_check_start_teleport_timer(struct block_list *sbl)
 	int max_dist = 0;
 
 	switch(sbl->type) {
-		case BL_HOM:	
-		case BL_ELEM:	
-		case BL_PET:	
-		case BL_MER:	
+		case BL_HOM:
+		case BL_ELEM:
+		case BL_PET:
+		case BL_MER:
 			msd = unit_get_master(sbl);
 			break;
 		default:
@@ -299,7 +299,7 @@ TIMER_FUNC(unit_step_timer){
 	//Execute request now if target is in attack range
 	if(ud->stepskill_id && skill_get_inf(ud->stepskill_id) & INF_GROUND_SKILL) {
 		//Execute ground skill
-		struct map_data *md = &map[bl->m];			
+		struct map_data *md = &map[bl->m];
 		unit_skilluse_pos(bl, target_id%md->xs, target_id/md->xs, ud->stepskill_id, ud->stepskill_lv);
 	} else {
 		//If a player has target_id set and target is in range, attempt attack
@@ -351,7 +351,7 @@ int unit_walktoxy_ontouch(struct block_list *bl, va_list ap)
 		break;
 	// case BL_MOB:	// unsupported
 	}
-	
+
 	return 0;
 }
 
@@ -369,7 +369,7 @@ static TIMER_FUNC(unit_walktoxy_timer)
 
 	if(bl == nullptr)
 		return 0;
-	
+
 	unit_data *ud = unit_bl2ud(bl);
 
 	if(ud == nullptr)
@@ -421,7 +421,7 @@ static TIMER_FUNC(unit_walktoxy_timer)
 	}
 
 	//Monsters will walk into an icewall from the west and south if they already started walking
-	if(map_getcell(bl->m,x+dx,y+dy,CELL_CHKNOPASS) 
+	if(map_getcell(bl->m,x+dx,y+dy,CELL_CHKNOPASS)
 		&& (icewall_walk_block == 0 || dx < 0 || dy < 0 || !map_getcell(bl->m,x+dx,y+dy,CELL_CHKICEWALL)))
 		return unit_walktoxy_sub(bl);
 
@@ -505,6 +505,13 @@ static TIMER_FUNC(unit_walktoxy_timer)
 			} else
 				sd->areanpc.clear();
 			pc_cell_basilica(sd);
+
+			// Extended CELL PVP
+			if( !sd->state.pvp && map_getcell( sd->bl.m, sd->bl.x, sd->bl.y, CELL_CHKPVP) )
+				map_pvp_area(sd, 1);
+			else if( sd->state.pvp && !map_getcell( sd->bl.m, sd->bl.x, sd->bl.y, CELL_CHKPVP) )
+				map_pvp_area(sd, 0);
+
 			break;
 		case BL_MOB:
 			//Movement was successful, reset walktoxy_fail_count
@@ -514,6 +521,13 @@ static TIMER_FUNC(unit_walktoxy_timer)
 					return 0; // Warped
 			} else
 				md->areanpc_id = 0;
+
+			// Extended CELL PVP
+			if( !sd->state.pvp && map_getcell( sd->bl.m, sd->bl.x, sd->bl.y, CELL_CHKPVP) )
+				map_pvp_area(sd, 1);
+			else if( sd->state.pvp && !map_getcell( sd->bl.m, sd->bl.x, sd->bl.y, CELL_CHKPVP) )
+				map_pvp_area(sd, 0);
+
 			if (md->min_chase > md->db->range3)
 				md->min_chase--;
 			// Walk skills are triggered regardless of target due to the idle-walk mob state.
@@ -574,7 +588,7 @@ static TIMER_FUNC(unit_walktoxy_timer)
 
 	if(ud->state.change_walk_target) {
 		if(unit_walktoxy_sub(bl)) {
-			return 1;	
+			return 1;
 		} else {
 			clif_fixpos(bl);
 			return 0;
@@ -699,6 +713,9 @@ TIMER_FUNC(unit_delay_walktobl_timer){
  */
 int unit_walktoxy( struct block_list *bl, short x, short y, unsigned char flag)
 {
+	t_tick tick;
+	t_tick e_tick;
+
 	nullpo_ret(bl);
 
 	unit_data* ud = unit_bl2ud(bl);
@@ -740,6 +757,29 @@ int unit_walktoxy( struct block_list *bl, short x, short y, unsigned char flag)
 
 	if(!(flag&2) && (!status_bl_has_mode(bl,MD_CANMOVE) || !unit_can_move(bl)))
 		return 0;
+
+	// // Extended CELL PVP
+	if (bl->type == BL_PC)
+	{
+		struct map_session_data* sd = (TBL_PC*)bl;
+		tick = gettick();
+
+		if (sd && sd->pvpcan_walkout_tick && !map_getcell( sd->bl.m, x, y, CELL_CHKPVP ) ) {
+			if ( DIFF_TICK(tick, sd->pvpcan_walkout_tick) < battle_config.cellpvp_walkout_delay )
+			{
+				e_tick = (battle_config.cellpvp_walkout_delay - DIFF_TICK( tick, sd->pvpcan_walkout_tick))/1000;
+				char e_msg[150];
+				if( e_tick > 99 )
+						sprintf(e_msg, msg_txt(sd, 1599), sd->status.name, (double)e_tick / 60);
+				else
+						sprintf(e_msg, msg_txt(sd, 1600), sd->status.name, e_tick+1);
+
+				//clif_colormes(sd,color_table[COLOR_YELLOW], e_msg);
+				clif_messagecolor(&sd->bl, color_table[COLOR_YELLOW], e_msg, false, SELF);
+				return 0;
+			}
+		}
+	}
 
 	ud->state.walk_easy = flag&1;
 	ud->to_x = x;
@@ -997,7 +1037,7 @@ int unit_escape(struct block_list *bl, struct block_list *target, short dist, ui
  * @param bl: Object to instant warp
  * @param dst_x: X coordinate to warp to
  * @param dst_y: Y coordinate to warp to
- * @param easy: 
+ * @param easy:
  *		0: Hard path check (attempt to go around obstacle)
  *		1: Easy path check (no obstacle on movement path)
  *		2: Long path check (no obstacle on line from start to destination)
@@ -1409,6 +1449,18 @@ int unit_stop_walking(struct block_list *bl,int type)
  */
 int unit_skilluse_id(struct block_list *src, int target_id, uint16 skill_id, uint16 skill_lv)
 {
+
+	// Extended CELL PVP
+	struct block_list *bl = map_id2bl(target_id);
+
+	if( bl && src->type == BL_PC && bl->type == BL_PC && src->id != target_id)
+	{
+		struct map_session_data *dstsd = (TBL_PC*)bl;
+
+		 if( dstsd && dstsd->state.pvp != ((TBL_PC*)src)->state.pvp )
+			 return 0;
+	}
+
 	return unit_skilluse_id2(
 		src, target_id, skill_id, skill_lv,
 		skill_castfix(src, skill_id, skill_lv),
@@ -1433,7 +1485,7 @@ int unit_is_walking(struct block_list *bl)
 	return (ud->walktimer != INVALID_TIMER);
 }
 
-/** 
+/**
  * Checks if a unit is able to move based on status changes
  * View the StatusChangeStateTable in status.cpp for a list of statuses
  * Some statuses are still checked here due too specific variables
@@ -2248,7 +2300,7 @@ int unit_set_target(struct unit_data* ud, int target_id)
 	if( ud->target != target_id ) {
 		struct unit_data * ux;
 		struct block_list* target;
-	
+
 		if (ud->target && (target = map_id2bl(ud->target)) && (ux = unit_bl2ud(target)) && ux->target_count > 0)
 			ux->target_count--;
 
@@ -2373,7 +2425,7 @@ bool unit_can_attack(struct block_list *src, int target_id)
  * Requests a unit to attack a target
  * @param src: Object initiating attack
  * @param target_id: Target ID (bl->id)
- * @param continuous: 
+ * @param continuous:
  *		0x1 - Whether or not the attack is ongoing
  *		0x2 - Whether function was called from unit_step_timer or not
  * @return Success(0); Fail(1);
@@ -2433,7 +2485,7 @@ int unit_attack(struct block_list *src,int target_id,int continuous)
 		ud->stepskill_lv = 0;
 		return 0; // Attacking will be handled by unit_walktoxy_timer in this case
 	}
-	
+
 	if(DIFF_TICK(ud->attackabletime, gettick()) > 0) // Do attack next time it is possible. [Skotlex]
 		ud->attacktimer=add_timer(ud->attackabletime,unit_attack_timer,src->id,0);
 	else // Attack NOW.
@@ -2442,7 +2494,7 @@ int unit_attack(struct block_list *src,int target_id,int continuous)
 	return 0;
 }
 
-/** 
+/**
  * Cancels an ongoing combo, resets attackable time, and restarts the
  * attack timer to resume attack after amotion time
  * @author [Skotlex]
@@ -2754,7 +2806,7 @@ static int unit_attack_timer_sub(struct block_list* src, int tid, t_tick tick)
 			// Set mob's ANGRY/BERSERK states.
 			md->state.skillstate = md->state.aggressive?MSS_ANGRY:MSS_BERSERK;
 
-			if (status_has_mode(sstatus,MD_ASSIST) && DIFF_TICK(md->last_linktime, tick) < MIN_MOBLINKTIME) { 
+			if (status_has_mode(sstatus,MD_ASSIST) && DIFF_TICK(md->last_linktime, tick) < MIN_MOBLINKTIME) {
 				// Link monsters nearby [Skotlex]
 				md->last_linktime = tick;
 				map_foreachinrange(mob_linksearch, src, md->db->range2, BL_MOB, md->mob_id, target, tick);

@@ -693,6 +693,16 @@ struct Battle_Config
 	int mer_idle_no_share;
 	int idletime_mer_option;
 
+	// Extended CELL PVP
+	int cellpvp_deathmatch;
+	int cellpvp_deathmatch_delay;
+	int deathmatch_hp_rate;
+	int deathmatch_sp_rate;
+	int cellpvp_autobuff;
+	int cellpvp_party_enable;
+	int cellpvp_guild_enable;
+	int cellpvp_walkout_delay;
+
 #include "../custom/battle_config_struct.inc"
 };
 

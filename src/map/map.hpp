@@ -657,6 +657,7 @@ enum cell_t{
 	CELL_NOCHAT,
 	CELL_MAELSTROM,
 	CELL_ICEWALL,
+	CELL_PVP,		// Extended CELL PVP
 
 };
 
@@ -681,6 +682,7 @@ enum cell_chk : uint8 {
 	CELL_CHKNOCHAT,			// Whether the cell denies Player Chat Window
 	CELL_CHKMAELSTROM,		// Whether the cell has Maelstrom
 	CELL_CHKICEWALL,		// Whether the cell has Ice Wall
+	CELL_CHKPVP,		    // Whether the cell has PVP Extended CELL PVP
 
 };
 
@@ -700,7 +702,8 @@ struct mapcell
 		novending : 1,
 		nochat : 1,
 		maelstrom : 1,
-		icewall : 1;
+		icewall : 1,
+		pvp : 1;		// Extended CELL PVP
 
 #ifdef CELL_NOSTACK
 	unsigned char cell_bl; //Holds amount of bls in this cell.
@@ -730,6 +733,7 @@ struct map_data {
 	int users;
 	int users_pvp;
 	int iwall_num; // Total of invisible walls in this map
+	int cell_pvpuser;	// Extended CELL PVP
 
 	std::unordered_map<int16, int> flag;
 	struct point save;
@@ -1184,5 +1188,7 @@ extern char roulette_table[32];
 extern char guild_storage_log_table[32];
 
 void do_shutdown(void);
+
+int map_pvp_area(struct map_session_data* sd, bool flag);
 
 #endif /* MAP_HPP */

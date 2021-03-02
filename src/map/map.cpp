@@ -120,7 +120,7 @@ static struct block_list *bl_list[BL_LIST_MAX];
 static int bl_list_count = 0;
 
 #ifndef MAP_MAX_MSG
-	#define MAP_MAX_MSG 1550
+	#define MAP_MAX_MSG 1610
 #endif
 
 struct map_data map[MAX_MAP_PER_SERVER];
@@ -1745,7 +1745,7 @@ int map_search_freecell(struct block_list *src, int16 m, int16 *x,int16 *y, int1
  * Returns true on success and sets x and y to cell found.
  * Otherwise returns false and x and y are not changed.
  * type: Types of block to count
- * flag: 
+ * flag:
  *		0x1 - only count standing units
  *------------------------------------------*/
 bool map_closest_freecell(int16 m, int16 *x, int16 *y, int type, int flag)
@@ -1772,7 +1772,7 @@ bool map_closest_freecell(int16 m, int16 *x, int16 *y, int type, int flag)
 				*y = ty;
 				return true;
 			}
-		} 
+		}
 		//Full diagonal search
 		else if(dir%2 == 1 && costrange%MOVE_DIAGONAL_COST == 0) {
 			tx = *x+dx*(costrange/MOVE_DIAGONAL_COST);
@@ -1897,7 +1897,7 @@ static DBData create_charid2nick(DBKey key, va_list args)
 void map_addnickdb(int charid, const char* nick)
 {
 	struct charid2nick* p;
-	
+
 	if( map_charid2sd(charid) )
 		return;// already online
 
@@ -2105,10 +2105,10 @@ int map_quit(struct map_session_data *sd) {
 		status_change_end(&sd->bl, SC_SPRITEMABLE, INVALID_TIMER);
 		status_change_end(&sd->bl, SC_SV_ROOTTWIST, INVALID_TIMER);
 		// Remove visuals effect from headgear
-		status_change_end(&sd->bl, SC_MOONSTAR, INVALID_TIMER); 
-		status_change_end(&sd->bl, SC_SUPER_STAR, INVALID_TIMER); 
-		status_change_end(&sd->bl, SC_STRANGELIGHTS, INVALID_TIMER); 
-		status_change_end(&sd->bl, SC_DECORATION_OF_MUSIC, INVALID_TIMER); 
+		status_change_end(&sd->bl, SC_MOONSTAR, INVALID_TIMER);
+		status_change_end(&sd->bl, SC_SUPER_STAR, INVALID_TIMER);
+		status_change_end(&sd->bl, SC_STRANGELIGHTS, INVALID_TIMER);
+		status_change_end(&sd->bl, SC_DECORATION_OF_MUSIC, INVALID_TIMER);
 		if (battle_config.debuff_on_logout&1) { //Remove negative buffs
 			status_change_end(&sd->bl, SC_ORCISH, INVALID_TIMER);
 			status_change_end(&sd->bl, SC_STRIPWEAPON, INVALID_TIMER);
@@ -2197,6 +2197,10 @@ int map_quit(struct map_session_data *sd) {
 
 	if (sd->state.buyingstore)
 		idb_remove(buyingstore_getdb(), sd->status.char_id);
+
+	// Extended CELL PVP
+	if( sd->state.pvp && map_getcell( sd->bl.m, sd->bl.x, sd->bl.y, CELL_CHKPVP ) )
+		map_pvp_area(sd, 0);
 
 	pc_damage_log_clear(sd,0);
 	party_booking_delete(sd); // Party Booking [Spiria]
@@ -3238,6 +3242,8 @@ int map_getcellp(struct map_data* m,int16 x,int16 y,cell_chk cellchk)
 			return (cell.maelstrom);
 		case CELL_CHKICEWALL:
 			return (cell.icewall);
+		case CELL_CHKPVP: // Extended CELL PVP
+			return (cell.pvp);
 
 		// special checks
 		case CELL_CHKPASS:
@@ -3291,8 +3297,9 @@ void map_setcell(int16 m, int16 x, int16 y, cell_t cell, bool flag)
 		case CELL_LANDPROTECTOR: mapdata->cell[j].landprotector = flag; break;
 		case CELL_NOVENDING:     mapdata->cell[j].novending = flag;     break;
 		case CELL_NOCHAT:        mapdata->cell[j].nochat = flag;        break;
-		case CELL_MAELSTROM:	 mapdata->cell[j].maelstrom = flag;	  break;
-		case CELL_ICEWALL:		 mapdata->cell[j].icewall = flag;		  break;
+		case CELL_MAELSTROM:	 mapdata->cell[j].maelstrom = flag;	    break;
+		case CELL_ICEWALL:		 mapdata->cell[j].icewall = flag;		break;
+		case CELL_PVP:           mapdata->cell[j].pvp = flag;           break;  // Extended CELL PVP
 		default:
 			ShowWarning("map_setcell: invalid cell type '%d'\n", (int)cell);
 			break;
@@ -5111,6 +5118,41 @@ void do_shutdown(void)
 	}
 }
 
+// Extended CELL PVP
+int map_pvp_area(struct map_session_data* sd, bool flag)
+{
+	switch(flag)
+	{
+		case 1:
+			clif_map_property(&sd->bl, MAPPROPERTY_FREEPVPZONE , SELF);
+			if (sd->pvp_timer == INVALID_TIMER) {
+				map[sd->bl.m].cell_pvpuser++;
+
+				sd->pvp_timer  = add_timer(gettick()+200, pc_calc_pvprank_timer, sd->bl.id, 0);
+				sd->pvp_rank  = 0;
+				sd->pvp_lastusers = 0;
+				sd->pvp_point  = 5;
+				sd->pvp_won   = 0;
+				sd->pvp_lost  = 0;
+				sd->state.pvp  = 1;
+				sd->pvpcan_walkout_tick = gettick();
+			}
+			break;
+		default:
+			clif_pvpset(sd, 0, 0, 2);
+			map[sd->bl.m].cell_pvpuser--;
+
+			if( sd->pvp_timer != INVALID_TIMER )
+				delete_timer(sd->pvp_timer, pc_calc_pvprank_timer);
+
+			sd->pvp_timer  = INVALID_TIMER;
+			sd->state.pvp  = 0;
+			break;
+	}
+
+	return 0;
+}
+
 int do_init(int argc, char *argv[])
 {
 	runflag = MAPSERVER_ST_STARTING;
@@ -5208,7 +5250,7 @@ int do_init(int argc, char *argv[])
 	add_timer_func_list(map_clearflooritem_timer, "map_clearflooritem_timer");
 	add_timer_func_list(map_removemobs_timer, "map_removemobs_timer");
 	add_timer_interval(gettick()+1000, map_freeblock_timer, 0, 0, 60*1000);
-	
+
 	map_do_init_msg();
 	do_init_path();
 	do_init_atcommand();

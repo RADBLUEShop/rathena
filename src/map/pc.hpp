@@ -341,6 +341,7 @@ struct map_session_data {
 		bool cashshop_open;
 		bool sale_open;
 		unsigned int block_action : 10;
+		unsigned int pvp : 1; // Extended CELL PVP
 	} state;
 	struct {
 		unsigned char no_weapon_damage, no_magic_damage, no_misc_damage;
@@ -426,6 +427,7 @@ struct map_session_data {
 	t_tick cansendmail_tick; // [Mail System Flood Protection]
 	t_tick ks_floodprotect_tick; // [Kill Steal Protection]
 	t_tick equipswitch_tick; // Equip switch
+	t_tick pvpcan_walkout_tick; // Extended CELL PVP
 
 	struct s_item_delay {
 		t_itemid nameid;
@@ -1114,7 +1116,7 @@ public:
 
 extern AttendanceDatabase attendance_db;
 
-/// Enum of Summoner Power of 
+/// Enum of Summoner Power of
 enum e_summoner_power_type {
 	SUMMONER_POWER_LAND = 0,
 	SUMMONER_POWER_LIFE,
